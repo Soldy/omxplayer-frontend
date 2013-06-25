@@ -31,7 +31,14 @@ playerstat['playing'] = 0
 playerstat['pause'] = 0
 playerstat['outtags'] = 0
 playerstat['outtage'] = 0
-play_list = []
+playerstat['played'] = "none"
+play_list = {}
+play_list['id'] = []
+play_list['title'] = []
+play_list['path'] = [] 
+play_list['filename'] = []
+play_list['format'] = []
+play_list['toplist']=[]
 
 command_send={
 'speedup':'1',
@@ -61,18 +68,49 @@ class Getco:
         inpury = web.input(command = 'web')
         if inpury.command=="play":
             inpuy = web.input(fil = 'web')
-            omx_play(inpuy.fil)
+            omx_play(str(inpuy.fil))
         elif inpury.command=="stop":
             omx_stop()
         elif inpury.command=="pause":
             omx_pause()
+        elif inpury.command=="seek+30'":
+            omx_send('\x1b\x5b\x43')
+        elif inpury.command=="seek-30'":
+            omx_send('\x1b\x5b\x44')
         else:
-            omx_send(command_send[inpury.command])
+            return "[{"+omx_status()+"},"+','.join(outputlist)+"]"
         return "[{"+omx_status()+"}]"
     def GET(self):
-        page_file = open(os.path.join(PAGE_FOLDER,"ta.html"),'r')
+        page_file = open(os.path.join(PAGE_FOLDER,"t.html"),'r')
         pagea = page_file.read()
         page_file.close()
+        web.header('Content-Type', 'text/html')
+        return pagea
+
+def omx_send(data):
+    subprocess.Popen('echo -n '+data+' >'+re.escape(OMXIN_FILE),shell=True)
+    return 1
+
+def omx_play(file):
+    global playerstat
+    global play_list
+    #omx_send('q')
+    #time.sleep(0.5) #Possibly unneeded - crashing fixed by other means.
+    if playerstat['playing'] == 1:
+        omx_pause()
+    else: 
+        subprocess.Popen('killall -9  omxplayer.bin',stdout=subprocess.PIPE,shell=True)
+        subprocess.Popen('clear',stdout=subprocess.PIPE,shell=True)
+        time.sleep(1)
+        playerstat['playing']=1
+        playerstat['played'] =str(file)
+        subprocess.Popen('omxplayer -o hdmi '+os.path.join(MEDIA_RDIR,re.escape(play_list['path'][play_list['id'].index(str(file))]))+' <'+re.escape(OMXIN_FILE),shell=True)
+        omx_send('.')
+    return 1
+
+def omx_playlist():
+        global outputlist
+        global play_list
         itemlist = []
         path=''
         if path.startswith('..'):
@@ -95,50 +133,29 @@ class Getco:
         list.sort(itemlist, key=lambda alpha: alpha[1])
         list.sort(itemlist, key=lambda dirs: dirs[2])
         outputlist=[]
-        kar = 0
+        play_list['toplist'] = []
         for line in itemlist:
-            kar+=1
-            outputlist.append('singer.playlist['+str(kar)+'] = {\"path\":\"'+line[0]+'\", \"nam\":\"'+line[1]+'\", \"type\":\"'+line[2]+'\"};')
-        page_file = open(os.path.join(PAGE_FOLDER,"tb.html"),'r')
-        pageb = page_file.read()
-        page_file.close()
-        web.header('Content-Type', 'text/html')
-        htmlout = pagea+'\n'.join(outputlist)+" playerinterface({"+omx_status()+"});"+pageb
-        return htmlout
-
-
-if __name__ == "__main__":
-    app = web.application(urls,globals())
-    web.config.debug = False
-    app.run()
-    
-    
-def omx_send(data):
-    subprocess.Popen('echo -n '+data+' >'+re.escape(OMXIN_FILE),shell=True)
-    return 1
-
-def omx_play(file):
-    #omx_send('q')
-    #time.sleep(0.5) #Possibly unneeded - crashing fixed by other means.
-    if playerstat['playing'] == 1:
-        omx_pause()
-    else: 
-        subprocess.Popen('killall -9  omxplayer.bin',stdout=subprocess.PIPE,shell=True)
-        subprocess.Popen('clear',stdout=subprocess.PIPE,shell=True)
-        time.sleep(1)
-        playerstat['playing']=1
-        subprocess.Popen('omxplayer -o hdmi '+os.path.join(MEDIA_RDIR,re.escape(file))+' <'+re.escape(OMXIN_FILE),shell=True)
-        omx_send('.')
-    return 1
+            if line[1] not in play_list['filename']: 
+                play_list['toplist'].append(str(len(play_list['id'])))
+                play_list['id'].append(str(len(play_list['id'])))
+                play_list['path'].append(line[0])
+                play_list['filename'].append(line[1])
+                play_list['format'].append(line[2])
+            else:
+                play_list['toplist'].append(str(play_list['filename'].index(line[1])))
+            outputlist.append('{\"id\":\"'+str(play_list['filename'].index(line[1]))+'\",\"modul\":\"playlist\",\"path\":\"'+line[0]+'\", \"nam\":\"'+line[1]+'\", \"type\":\"'+line[2]+'\"}')
 
 
 def omx_stop():
+    global  playerstat
     subprocess.Popen('killall -9  omxplayer.bin',stdout=subprocess.PIPE,shell=True)
     subprocess.Popen('clear',stdout=subprocess.PIPE,shell=True)
     playerstat['pause']=0
     playerstat['playing']=0
+    playerstat['played'] = "none"
     
 def omx_pause():
+    global  playerstat
     if playerstat['pause'] == 0 and playerstat['playing'] == 1:
        playerstat['pause']=1
        omx_send('p')
@@ -148,9 +165,19 @@ def omx_pause():
     return 1
         
 def omx_status():
+    global  playerstat
     if playerstat['pause'] == 1:
-        return '\"modul\":\"interface\",\"interfac\":\"pause\"'
+        return '\"modul\":\"interface\",\"interfac\":\"pause\",\"singed\":\"'+playerstat['played']+'\"'
     elif playerstat['playing'] == 1:
-        return '\"modul\":\"interface\",\"interfac\":\"playing\"'
+        return '\"modul\":\"interface\",\"interfac\":\"playing\",\"singed\":\"'+playerstat['played']+'\"'
     else:
-        return '\"modul\":\"interface\",\"interfac\":\"stoped\"'
+        return '\"modul\":\"interface\",\"interfac\":\"stop\",\"singed\":\"'+playerstat['played']+'\"'
+        
+        
+omx_playlist()
+print '\n'.join(outputlist)
+
+if __name__ == "__main__":
+    app = web.application(urls,globals())
+    web.config.debug = False
+    app.run()
