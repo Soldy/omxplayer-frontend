@@ -7,6 +7,8 @@ from web import form
 import os
 import pipes
 import string
+import pyomxplayer
+
 
 urls = (
 '^/$','Getco',
@@ -19,6 +21,8 @@ urls = (
 '^/([^/]*)$','Other'
 )
 
+omx = pyomxplayer.OMXPlayer('')
+omxinfo =  pyomxplayer.OMXPlayerinfo('')
 PLAYABLE_TYPES = ['.264','.avi','.bin','.divx','.f4v','.h264','.m4e','.m4v','.m4a','.mkv','.mov','.mp4','.mp4v','.mpe','.mpeg','.mpeg4','.mpg','.mpg2','.mpv','.mpv2','.mqv','.mvp','.ogm','.ogv','.qt','.qtm','.rm','.rts','.scm','.scn','.smk','.swf','.vob','.wmv','.xvid','.x264','.mp3','.flac','.ogg','.wav', '.flv', '.mkv']
 MEDIA_RDIR = 'media/'
 PAGE_FOLDER = 'omxfront/'
@@ -39,6 +43,8 @@ play_list['path'] = []
 play_list['filename'] = []
 play_list['format'] = []
 play_list['toplist']=[]
+play_list['length']=[]
+
 
 command_send={
 'speedup':'1',
@@ -65,6 +71,7 @@ outputlist=[]
 
 class Getco:
     def POST(self):
+        global omx
         inpury = web.input(command = 'web')
         if inpury.command=="play":
             inpuy = web.input(fil = 'web')
@@ -74,9 +81,9 @@ class Getco:
         elif inpury.command=="pause":
             omx_pause()
         elif inpury.command=="seek+30'":
-            omx_send('\x1b\x5b\x43')
+            omx.seek_forward_30()
         elif inpury.command=="seek-30'":
-            omx_send('\x1b\x5b\x44')
+            omx.seek_backward_30()
         else:
             return "[{"+omx_status()+"},"+','.join(outputlist)+"]"
         return "[{"+omx_status()+"}]"
@@ -94,23 +101,23 @@ def omx_send(data):
 def omx_play(file):
     global playerstat
     global play_list
+    global omx
     #omx_send('q')
     #time.sleep(0.5) #Possibly unneeded - crashing fixed by other means.
     if playerstat['playing'] == 1:
         omx_pause()
     else: 
-        subprocess.Popen('killall -9  omxplayer.bin',stdout=subprocess.PIPE,shell=True)
-        subprocess.Popen('clear',stdout=subprocess.PIPE,shell=True)
+        omx.stop()
         time.sleep(1)
         playerstat['playing']=1
         playerstat['played'] =str(file)
-        subprocess.Popen('omxplayer -o hdmi '+os.path.join(MEDIA_RDIR,re.escape(play_list['path'][play_list['id'].index(str(file))]))+' <'+re.escape(OMXIN_FILE),shell=True)
-        omx_send('.')
+        omx = pyomxplayer.OMXPlayer(os.path.join(MEDIA_RDIR,re.escape(play_list['path'][play_list['id'].index(str(file))])))
     return 1
 
 def omx_playlist():
         global outputlist
         global play_list
+        global omxinfo
         itemlist = []
         path=''
         if path.startswith('..'):
@@ -141,37 +148,41 @@ def omx_playlist():
                 play_list['path'].append(line[0])
                 play_list['filename'].append(line[1])
                 play_list['format'].append(line[2])
+                omxinfo =  pyomxplayer.OMXPlayerinfo(os.path.join(MEDIA_RDIR,re.escape(line[0])))
+                play_list['length'].append(omxinfo.movielength)
             else:
                 play_list['toplist'].append(str(play_list['filename'].index(line[1])))
-            outputlist.append('{\"id\":\"'+str(play_list['filename'].index(line[1]))+'\",\"modul\":\"playlist\",\"path\":\"'+line[0]+'\", \"nam\":\"'+line[1]+'\", \"type\":\"'+line[2]+'\"}')
+            outputlist.append('{\"id\":\"'+str(play_list['filename'].index(line[1]))+'\",\"modul\":\"playlist\",\"path\":\"'+line[0]+'\", \"nam\":\"'+line[1]+'\", \"type\":\"'+line[2]+'\", \"lengt\":\"'+str(play_list['length'][play_list['filename'].index(line[1])])+'\"}')
 
 
 def omx_stop():
-    global  playerstat
-    subprocess.Popen('killall -9  omxplayer.bin',stdout=subprocess.PIPE,shell=True)
-    subprocess.Popen('clear',stdout=subprocess.PIPE,shell=True)
+    global playerstat
+    global omx
+    omx.stop()
     playerstat['pause']=0
     playerstat['playing']=0
     playerstat['played'] = "none"
     
 def omx_pause():
-    global  playerstat
+    global playerstat
+    global omx
     if playerstat['pause'] == 0 and playerstat['playing'] == 1:
        playerstat['pause']=1
-       omx_send('p')
+       omx.toggle_pause()
     elif playerstat['pause'] == 1 and playerstat['playing'] == 1:
        playerstat['pause']=0
-       omx_send('p')
+       omx.toggle_pause()
     return 1
         
 def omx_status():
-    global  playerstat
+    global playerstat
+    global omx
     if playerstat['pause'] == 1:
-        return '\"modul\":\"interface\",\"interfac\":\"pause\",\"singed\":\"'+playerstat['played']+'\"'
+        return '\"modul\":\"interface\",\"interfac\":\"pause\",\"singed\":\"'+playerstat['played']+'\",\"position\":\"'+str(omx.position)+'\"'
     elif playerstat['playing'] == 1:
-        return '\"modul\":\"interface\",\"interfac\":\"playing\",\"singed\":\"'+playerstat['played']+'\"'
+        return '\"modul\":\"interface\",\"interfac\":\"playing\",\"singed\":\"'+playerstat['played']+'\",\"position\":\"'+str(omx.position)+'\"'
     else:
-        return '\"modul\":\"interface\",\"interfac\":\"stop\",\"singed\":\"'+playerstat['played']+'\"'
+        return '\"modul\":\"interface\",\"interfac\":\"stop\",\"singed\":\"'+playerstat['played']+'\",\"position\":\"'+str(omx.position)+'\"'
         
         
 omx_playlist()

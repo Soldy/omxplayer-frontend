@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
     <head>
         <meta charset="UTF-8">
@@ -35,20 +36,67 @@
                  border-top: 2px #0000ff solid;
             }
             .playerlist{
-                 height:370px;
+                 height:330px;
                  width:320px;           
                  overflow-y:scroll;
                  overflow-x:hidden;
             }
             .playerelement{
-                 height:16px;
+                 height:18px;
                  width:320px;
                  padding-top:4px;           
                  color:#0000ff;
                  font-weight:bold;
-                 font-size:14px;
+                 font-size:16px;
                  overflow:hidden;
                  cursor:pointer;
+            }
+            .playerstatustime{ 
+                 height:20px;
+                 width:320px;
+                 color:#0000ff;
+                 font-weight:bold;
+                 font-size:16px;
+            }
+            .playerstatustimec{
+                 float:left; 
+                 height:20px;
+                 width:160px;
+                 color:#0000ff;
+                 font-weight:bold;
+                 font-size:16px;
+            }
+            .playerstatustimef{ 
+                 float:left;
+                 height:20px;
+                 width:160px;
+                 color:#0000ff;
+                 font-weight:bold;
+                 font-size:16px;
+                 text-align:right;
+            }
+            .playerstatusbar{
+                 position:static;
+                 height:20px;
+                 width:320px;
+            }
+            .playerstatusbarrail{ 
+                 position:relative;
+                 top:9px;
+                 height:2px;
+                 width:320px;
+                 background:#0000ff;
+            }
+            .playerstatusbartrain{
+                 position:relative;
+                 top:2px;
+                 height:12px;
+                 width:12px;
+                 background:#0000ff;
+            }
+            .playerelementsin{           
+                 color:#000;
+                 background-color: #0000ff;
             }
             .playerbutton{
                  float:left;
@@ -69,7 +117,14 @@
         <div  class="desktopbigclass" id="desktopbigclass">
         <div  class="playerbox" id="playerbox">
             <div  class="playerlist" id="playerlist">
-
+            </div>
+            <div  class="playerstatustime" id="playerstatustime">
+                <div  class="playerstatustimec" id="playerstatustimec">00:00:00</div>
+                <div  class="playerstatustimef" id="playerstatustimef">00:00:00</div>
+            </div>
+            <div class="playerstatusbar" id="playerstatusbar">
+                <div  class="playerstatusbarrail" id="playerstatusbarrail"></div>
+                <div  class="playerstatusbartrain" id="playerstatusbartrain"></div>
             </div>
             <div  class="playerline">
                  <div  class="playerbutton" id="playerbuttonfb" onclick="playerfb()"><<</div>
@@ -98,6 +153,7 @@
                     singed : "none",
                     singi : "none",
                     playlist : new Array(),
+                    playlistbyid : {},
                     playlistnew : 0,
                     playing : 0,
                 }
@@ -125,8 +181,8 @@
                 
                 var player = {
                     playing : 0,
-                
-                
+                    interval : "",
+                    timepos:0,
                 }
                 function playerplay() {
                     if (singer.singed.toString() !=="none") {
@@ -151,9 +207,15 @@
                 function playerlistmake() {
 	                  var outhtml="";
 	                  for (i=1; singer.playlist.length > i ; i++ ) {
-	                       outhtml+="<div  class='playerelement' id='playerelement"+singer.playlist[i].id+"' onclick='singerpush("+singer.playlist[i].id+")'>"+singer.playlist[i].nam+"</div>";
+	                       outhtml+="<div  class='playerelement ";
+	                       if (singer.singed === singer.playlist[i].id){
+	                           outhtml+="playerelementsin";
+	                       }
+	                       outhtml+="' id='playerelement"+singer.playlist[i].id+"' onclick='singerpush("+singer.playlist[i].id+")'>"+singer.playlist[i].nam+"</div>";
+	                       
 	                  }
 	                  document.getElementById("playerlist").innerHTML=outhtml; 
+
                 }
                 
                 function netsend(command, fnam) {
@@ -175,7 +237,11 @@
                                 jsonObj.name;
                                 if (singer.playlistnew >0){
                                     playerlistmake();
-                                    singerpush(singer.singi);
+                                    playerinterfacefl(singer.playlistbyid[singer.singi].lengt);
+                                    playerinterbarpos(singer.playlistbyid[singer.singi].lengt);
+                                    if (singer.singed.toString() === "none"){
+                                        singerpush(singer.singi)
+                                    }
                                 }
                             }
                         }
@@ -190,7 +256,8 @@
                             singer.playlist.length=0;
                             singer.playlistnew = 1;            	                     
 	                     }
-	                     singer.playlist.push({id:jsonom.id,path:jsonom.path,nam:jsonom.nam});
+	                     singer.playlist.push({id:jsonom.id,path:jsonom.path,nam:jsonom.nam,lengt:jsonom.lengt});
+	                     singer.playlistbyid[jsonom.id]={id:jsonom.id,path:jsonom.path,nam:jsonom.nam,lengt:jsonom.lengt};
 	                 }
 	                 
                 }                
@@ -208,12 +275,73 @@
                     }
                     if (singer.singed==="none" ) {
 	                     singer.singi = jsonom.singed;
-	                 }         
+	                 }
+	                 var fsec = parseInt(jsonom.position/1000000);
+	                 player.timepos = fsec;
+	                 var hur = parseInt(fsec/3600);
+	                 var mun = parseInt((fsec-(hur*3600))/60);
+	                 var suc = (fsec-(hur*3600)-(mun*60));
+                    var outhtml = "";
+                    if (hur === 0) {
+                        outhtml = "00:";
+                    } else if (10 > hur ){
+                        outhtml = "0"+hur.toString()+":";
+                    } else {
+                        outhtml = hur.toString()+":";
+                    }	                 
+                    if (mun === 0) {
+                        outhtml += "00:";
+                    } else if (10 > mun){
+                        outhtml += "0"+mun.toString()+":";
+                    } else {
+                        outhtml += mun.toString()+":";
+                    }
+                    if (suc === 0) {
+                        outhtml += "00";
+                    } else if (10 > suc){
+                        outhtml += "0"+suc.toString();
+                    } else {
+                        outhtml += suc.toString();
+                    }
+	                 document.getElementById("playerstatustimec").innerHTML= outhtml;
+	                 
                 }
 
+                function playerinterfacefl(pleng){playerinterbarpos(pleng)
+	                 var fsec = parseInt(pleng);
+	                 var hur = parseInt(fsec/3600);
+	                 var mun = parseInt((fsec-(hur*3600))/60);
+	                 var suc = (fsec-(hur*3600)-(mun*60));
+                    var outhtml = "";
+                    if (hur === 0) {
+                        outhtml = "00:";
+                    } else if (10 > hur ){
+                        outhtml = "0"+hur.toString()+":";
+                    } else {
+                        outhtml = hur.toString()+":";
+                    }	                 
+                    if (mun === 0) {
+                        outhtml += "00:";
+                    } else if (10 > mun){
+                        outhtml += "0"+mun.toString()+":";
+                    } else {
+                        outhtml += mun.toString()+":";
+                    }
+                    if (suc === 0) {
+                        outhtml += "00";
+                    } else if (10 > suc){
+                        outhtml += "0"+suc.toString();
+                    } else {
+                        outhtml += suc.toString();
+                    }
+	                 document.getElementById("playerstatustimef").innerHTML= outhtml;   
+                }
         
-
-                netsend("refreshing", "none");    
+                function playerinterbarpos(pleng){
+                    var newpos = parseInt((player.timepos/pleng)*(320-12));
+                    document.getElementById("playerstatusbartrain").style.left = newpos.toString()+"px";
+                }
+                setInterval(function (){netsend("refreshing", "none")}, 500);    
         </script>
     </body>
 </html>
