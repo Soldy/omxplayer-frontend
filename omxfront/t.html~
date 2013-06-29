@@ -300,7 +300,7 @@
                 }                
                 function playerlistmake() {
 	                  var outhtml="";
-	                  for (i=0; singer.playlist.length > i ; i++ ) {
+	                  for (i=1; singer.playlist.length > i ; i++ ) {
 	                       outhtml+="<div  class='playerelement ";
 	                       if (singer.singed === singer.playlist[i].id){
 	                           outhtml+="playerelementsing";
