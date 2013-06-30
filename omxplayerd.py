@@ -12,12 +12,6 @@ import pyomxplayer
 
 urls = (
 '^/$','Getco',
-'^/shutdown$','Shutdown',
-'^/play/(.*)$','Play',
-'^/path/?(.*)$','Path',
-'^/playlist/?(.*)$','Playlist',
-'^/stop/','Stop',
-'^/pause/','Pause',
 '^/([^/]*)$','Other'
 )
 
@@ -46,25 +40,6 @@ play_list['toplist']=[]
 play_list['length']=[]
 
 
-command_send={
-'speedup':'1',
-'speeddown':'2',
-'nextaudio':'k',
-'prevaudio':'j',
-'nextchapter':'o',
-'prevchapter':'i',
-'nextsubs':'m',
-'prevsubs':'n',
-'togglesubs':'s',
-'stop':'q',
-'volumedown':'-',
-'volumeup':'+',
-'languagedown':'j',
-'languageup':'k',
-'seek-30':'\x1b\x5b\x44',
-'seek+30':'\x1b\x5b\x43',
-'seek-600':'\x1b\x5b\x42',
-'seek+600':'\x1b\x5b\x41'}
 
 outputlist=[]
 
